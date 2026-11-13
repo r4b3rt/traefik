@@ -1,15 +1,15 @@
-package tcpipwhitelist
+package ipwhitelist
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/traefik/traefik/v2/pkg/config/dynamic"
-	"github.com/traefik/traefik/v2/pkg/tcp"
+	"github.com/traefik/traefik/v3/pkg/config/dynamic"
+	"github.com/traefik/traefik/v3/pkg/tcp"
 )
 
 func TestNewIPWhiteLister(t *testing.T) {
@@ -39,12 +39,11 @@ func TestNewIPWhiteLister(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
 			next := tcp.HandlerFunc(func(conn tcp.WriteCloser) {})
-			whiteLister, err := New(context.Background(), next, test.whiteList, "traefikTest")
+			whiteLister, err := New(t.Context(), next, test.whiteList, "traefikTest")
 
 			if test.expectedError {
 				assert.Error(t, err)
@@ -81,7 +80,6 @@ func TestIPWhiteLister_ServeHTTP(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
@@ -94,7 +92,7 @@ func TestIPWhiteLister_ServeHTTP(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			whiteLister, err := New(context.Background(), next, test.whiteList, "traefikTest")
+			whiteLister, err := New(t.Context(), next, test.whiteList, "traefikTest")
 			require.NoError(t, err)
 
 			server, client := net.Pipe()
@@ -103,7 +101,7 @@ func TestIPWhiteLister_ServeHTTP(t *testing.T) {
 				whiteLister.ServeTCP(&contextWriteCloser{client, addr{test.remoteAddr}})
 			}()
 
-			read, err := ioutil.ReadAll(server)
+			read, err := io.ReadAll(server)
 			require.NoError(t, err)
 
 			assert.Equal(t, test.expected, string(read))
